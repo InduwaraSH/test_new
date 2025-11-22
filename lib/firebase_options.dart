@@ -46,6 +46,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '383509346664',
     projectId: 'tstnew-241c6',
     authDomain: 'tstnew-241c6.firebaseapp.com',
+    databaseURL: 'https://tstnew-241c6-default-rtdb.firebaseio.com',
     storageBucket: 'tstnew-241c6.firebasestorage.app',
     measurementId: 'G-93Q9P6MLMF',
   );
@@ -55,6 +56,7 @@ class DefaultFirebaseOptions {
     appId: '1:383509346664:android:9c302a9457dd07764c3edd',
     messagingSenderId: '383509346664',
     projectId: 'tstnew-241c6',
+    databaseURL: 'https://tstnew-241c6-default-rtdb.firebaseio.com',
     storageBucket: 'tstnew-241c6.firebasestorage.app',
   );
 
@@ -63,6 +65,7 @@ class DefaultFirebaseOptions {
     appId: '1:383509346664:ios:be772150f8473ff44c3edd',
     messagingSenderId: '383509346664',
     projectId: 'tstnew-241c6',
+    databaseURL: 'https://tstnew-241c6-default-rtdb.firebaseio.com',
     storageBucket: 'tstnew-241c6.firebasestorage.app',
     iosBundleId: 'com.example.a',
   );
@@ -72,6 +75,7 @@ class DefaultFirebaseOptions {
     appId: '1:383509346664:ios:be772150f8473ff44c3edd',
     messagingSenderId: '383509346664',
     projectId: 'tstnew-241c6',
+    databaseURL: 'https://tstnew-241c6-default-rtdb.firebaseio.com',
     storageBucket: 'tstnew-241c6.firebasestorage.app',
     iosBundleId: 'com.example.a',
   );
@@ -82,6 +86,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '383509346664',
     projectId: 'tstnew-241c6',
     authDomain: 'tstnew-241c6.firebaseapp.com',
+    databaseURL: 'https://tstnew-241c6-default-rtdb.firebaseio.com',
     storageBucket: 'tstnew-241c6.firebasestorage.app',
     measurementId: 'G-XQFG0BL2HV',
   );
