@@ -1,143 +1,181 @@
-import 'dart:async';
+import 'dart:io';
+
+import 'package:desktop_webview_window/desktop_webview_window.dart';
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:webview_flutter/webview_flutter.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:a/firebase_options.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
-const String webUrl = "https://test-app-c7b2e.web.app";
-const int cacheHours = 0; // Cache validity time (0 = always fetch)
-
-Future<void> main() async {
+void main(List<String> args) {
+  debugPrint('args: $args');
+  if (runWebViewTitleBarWidget(args)) {
+    return;
+  }
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class MyApp extends StatefulWidget {
+  const MyApp({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: "WebView With Cache",
-      home: const WebAppScreen(),
-      debugShowCheckedModeBanner: false,
-    );
-  }
+  State<MyApp> createState() => _MyAppState();
 }
 
-class WebAppScreen extends StatefulWidget {
-  const WebAppScreen({super.key});
+class _MyAppState extends State<MyApp> {
+  final TextEditingController _controller = TextEditingController(
+    text: 'https://test-app-c7b2e.firebaseapp.com',
+  );
 
-  @override
-  State<WebAppScreen> createState() => _WebAppScreenState();
-}
-
-class _WebAppScreenState extends State<WebAppScreen> {
-  late final WebViewController controller;
-  bool isLoading = true;
+  bool? _webviewAvailable;
 
   @override
   void initState() {
     super.initState();
-    initWebView();
+    WebviewWindow.isWebviewAvailable().then((value) {
+      setState(() {
+        _webviewAvailable = value;
+      });
+    });
   }
 
-  Future<void> initWebView() async {
-    controller = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted);
-
-    final prefs = await SharedPreferences.getInstance();
-
-    // ----- LOAD CACHE -----
-    final cachedHtml = prefs.getString("cached_page");
-    final savedTime = prefs.getInt("cached_time");
-
-    final now = DateTime.now().millisecondsSinceEpoch;
-    final expiry = cacheHours * 60 * 60 * 1000;
-
-    if (cachedHtml != null && savedTime != null) {
-      final age = now - savedTime;
-
-      if (age < expiry) {
-        print("📌 Loading from CACHE");
-        controller.loadHtmlString(cachedHtml);
-        setState(() => isLoading = false);
-        return;
-      }
-    }
-
-    // ----- LOAD FROM SERVER -----
-    print("🌍 Fetching from SERVER…");
-    controller
-      ..setNavigationDelegate(
-        NavigationDelegate(
-          onPageFinished: (url) async {
-            setState(() => isLoading = false);
-
-            // Get web HTML
-            String html = await controller
-                .runJavaScriptReturningResult(
-                  "document.documentElement.outerHTML",
-                )
-                .then((value) => value.toString());
-
-            // Save cache
-            prefs.setString("cached_page", html);
-            prefs.setInt("cached_time", now);
-
-            print("💾 Cached HTML saved");
-          },
-        ),
-      )
-      ..loadRequest(Uri.parse(webUrl));
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
-
-  // -------------------------------------------------------
-  // 🔥 CLEAR CUSTOM CACHED HTML
-  Future<void> clearMyCache() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove("cached_page");
-    await prefs.remove("cached_time");
-    print("🧹 Custom HTML cache cleared");
-  }
-
-  // 🔥 CLEAR WEBVIEW BROWSER CACHE
-  Future<void> clearWebViewCache() async {
-    await controller.clearCache();
-    print("🧹 WebView internal cache cleared");
-  }
-
-  // 🔥 CLEAR EVERYTHING + RELOAD CLEAN
-  Future<void> clearAllCaches() async {
-    await clearMyCache();
-    await clearWebViewCache();
-    print("♻️ ALL caches cleared");
-
-    // Reload fresh
-    controller.loadRequest(Uri.parse(webUrl));
-    setState(() => isLoading = true);
-  }
-  // -------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
-        children: [
-          WebViewWidget(controller: controller),
-          if (isLoading) const Center(child: CircularProgressIndicator()),
-        ],
-      ),
-
-      // 🔥 Floating button to clear cache
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          await clearAllCaches();
-        },
-        child: const Icon(Icons.cleaning_services),
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        appBar: AppBar(
+          title: const Text('Plugin example app'),
+          actions: [
+            IconButton(
+              onPressed: () async {
+                final webview = await WebviewWindow.create(
+                  configuration: CreateConfiguration(
+                    windowHeight: 1280,
+                    windowWidth: 720,
+                    title: "ExampleTestWindow",
+                    titleBarTopPadding: Platform.isMacOS ? 20 : 0,
+                    userDataFolderWindows: await _getWebViewPath(),
+                  ),
+                );
+                webview
+                  ..registerJavaScriptMessageHandler("test", (name, body) {
+                    debugPrint('on javaScipt message: $name $body');
+                  })
+                  ..setApplicationNameForUserAgent(" WebviewExample/1.0.0")
+                  ..setPromptHandler((prompt, defaultText) {
+                    if (prompt == "test") {
+                      return "Hello World!";
+                    } else if (prompt == "init") {
+                      return "initial prompt";
+                    }
+                    return "";
+                  })
+                  ..addScriptToExecuteOnDocumentCreated("""
+  const mixinContext = {
+    platform: 'Desktop',
+    conversation_id: 'conversationId',
+    immersive: false,
+    app_version: '1.0.0',
+    appearance: 'dark',
+  }
+  window.MixinContext = {
+    getContext: function() {
+      return JSON.stringify(mixinContext)
+    }
+  }
+""")
+                  ..launch("http://localhost:3000/test.html");
+              },
+              icon: const Icon(Icons.bug_report),
+            ),
+          ],
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                TextField(controller: _controller),
+                const SizedBox(height: 16),
+                TextButton(
+                  onPressed: _webviewAvailable != true ? null : _onTap,
+                  child: const Text('Open'),
+                ),
+                const SizedBox(height: 20),
+                TextButton(
+                  onPressed: () async {
+                    await WebviewWindow.clearAll(
+                      userDataFolderWindows: await _getWebViewPath(),
+                    );
+                    debugPrint('clear complete');
+                  },
+                  child: const Text('Clear all'),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
+
+  void _onTap() async {
+    final webview = await WebviewWindow.create(
+      configuration: CreateConfiguration(
+        userDataFolderWindows: await _getWebViewPath(),
+        titleBarTopPadding: Platform.isMacOS ? 20 : 0,
+      ),
+    );
+    webview
+      ..setBrightness(Brightness.dark)
+      ..setApplicationNameForUserAgent(" WebviewExample/1.0.0")
+      ..launch(_controller.text)
+      ..addOnUrlRequestCallback((url) {
+        debugPrint('url: $url');
+        final uri = Uri.parse(url);
+        if (uri.path == '/login_success') {
+          debugPrint('login success. token: ${uri.queryParameters['token']}');
+          webview.close();
+        }
+      })
+      ..onClose.whenComplete(() {
+        debugPrint("on close");
+      });
+    await Future.delayed(const Duration(seconds: 2));
+    for (final javaScript in _javaScriptToEval) {
+      try {
+        final ret = await webview.evaluateJavaScript(javaScript);
+        debugPrint('evaluateJavaScript: $ret');
+      } catch (e) {
+        debugPrint('evaluateJavaScript error: $e \n $javaScript');
+      }
+    }
+  }
+}
+
+const _javaScriptToEval = [
+  """
+  function test() {
+    return;
+  }
+  test();
+  """,
+  'eval({"name": "test", "user_agent": navigator.userAgent})',
+  '1 + 1',
+  'undefined',
+  '1.0 + 1.0',
+  '"test"',
+];
+
+Future<String> _getWebViewPath() async {
+  final document = await getApplicationDocumentsDirectory();
+  return p.join(document.path, 'desktop_webview_window');
 }
