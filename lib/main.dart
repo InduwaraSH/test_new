@@ -1,3 +1,4 @@
+import 'package:a/fetech.dart';
 import 'package:a/test.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_dart/firebase_dart.dart' as fd;
@@ -34,7 +35,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: test(), // your screen
+      home: fetch(), // your screen
     );
   }
 }
